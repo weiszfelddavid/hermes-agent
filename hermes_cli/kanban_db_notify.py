@@ -112,9 +112,10 @@ def add_notify_sub(
             ),
         )
         # chat_type / delivery_mode / delivery_metadata are last-write-wins;
-        # user_id_alt and notifier_profile only self-heal legacy rows lacking one.
+        # user_id, user_id_alt and notifier_profile only self-heal legacy rows lacking one.
         for column, value, fill_only in (
             ("chat_type", chat_type, False),
+            ("user_id", user_id, True),
             ("user_id_alt", user_id_alt, True),
             ("notifier_profile", notifier_profile, True),
             ("delivery_mode", valid_mode, False),
