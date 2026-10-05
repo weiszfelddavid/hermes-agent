@@ -29,15 +29,8 @@ def _schema_for_local_validation(node: Any) -> Any:
                   for key, value in node.items() if key != "nullable"}
     if node.get("nullable") is not True:
         return normalized
-    schema_type = normalized.get("type")
-    if isinstance(schema_type, str):
-        schema_type = [schema_type]
-    if isinstance(schema_type, list):
-        if "null" not in schema_type:
-            normalized["type"] = [*schema_type, "null"]
-        return normalized
-    # No ``type`` to extend ($ref/combinator): wrap so local refs still resolve from the
-    # root while null stays an explicit alternative.
+    # Restore the null alternative stripped from MCP schemas. Extending only "type"
+    # leaves enum/const constraints rejecting null before the server can receive it.
     return {"anyOf": [normalized, {"type": "null"}]}
 
 

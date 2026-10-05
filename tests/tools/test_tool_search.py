@@ -920,26 +920,37 @@ class TestDeferredCallSchemaProbe:
         assert result["ok"] is True
         assert calls == [{"count": 42}]
 
-    def test_nullable_extension_remains_accepted(self):
+    @pytest.mark.parametrize("constraint", [{}, {"enum": ["active", "cancelled"]}, {"const": "active"}])
+    @pytest.mark.parametrize("value", [None, "active", "invalid"])
+    def test_nullable_mcp_arguments_preserve_constraints(self, constraint, value):
         import model_tools
+        from tools.mcp_tool_schema import _normalize_mcp_input_schema
 
         calls = []
         name = "mcp_probe_nullable_validation"
         toolset = "mcp-probe-nullable-validation"
-        self._register_schema(name, toolset, {
+        parameters = _normalize_mcp_input_schema({
             "type": "object",
-            "properties": {"value": {"type": "string", "nullable": True}},
+            "properties": {"value": {"anyOf": [
+                {"type": "string", **constraint}, {"type": "null"},
+            ]}},
             "required": ["value"],
-        }, calls)
+        })
+        self._register_schema(name, toolset, parameters, calls)
 
         result = json.loads(model_tools.handle_function_call(
             function_name="tool_call",
-            function_args={"name": name, "arguments": {"value": None}},
+            function_args={"name": name, "arguments": {"value": value}},
             enabled_toolsets=[toolset],
         ))
 
-        assert result["ok"] is True
-        assert calls == [{"value": None}]
+        if constraint and value == "invalid":
+            assert calls == []
+            assert result["path"] == "arguments.value"
+            assert "NOT invoked" in result["error"]
+        else:
+            assert result["ok"] is True
+            assert calls == [{"value": value}]
 
     def test_schema_normalization_preserves_literal_enum_objects(self):
         from tools.tool_search import validate_deferred_call_args
